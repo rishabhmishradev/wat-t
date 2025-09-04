@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch Together - Synced</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      text-align: center; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      min-height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    h1 { 
+      background: rgba(255,255,255,0.1); 
+      color: white; 
+      padding: 20px; 
+      margin: 0 0 30px 0; 
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      font-size: 2rem;
+      font-weight: 300;
+    }
+    #controls { 
+      margin: 0 auto 30px auto; 
+      padding: 30px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 20px;
+      display: inline-block;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      backdrop-filter: blur(10px);
+      max-width: 600px;
+    }
+    input[type="text"], input[type="number"] { 
+      padding: 15px 20px; 
+      margin: 10px;
+      border: 2px solid #e1e5e9;
+      border-radius: 12px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      background: white;
+    }
+    input[type="text"]:focus, input[type="number"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    #videoUrl {
+      width: 100%;
+      max-width: 400px;
+    }
+    #seekTime {
+      width: 120px;
+    }
+    button { 
+      padding: 15px 25px; 
+      margin: 8px; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; 
+      border: none; 
+      cursor: pointer; 
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    button:hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    .seek-control {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 2px solid #f0f0f0;
+    }
+    #playerContainer { 
+      margin-top: 30px; 
+      display: flex;
+      justify-content: center;
+    }
+    #player { 
+      border-radius: 15px;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .status {
+      margin: 30px auto;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      max-width: 600px;
+    }
+    .status-item {
+      padding: 15px 25px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      font-size: 16px;
+      font-weight: 600;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+    #connectionStatus {
+      color: #667eea;
+    }
+    #userCount {
+      color: #28a745;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .user-icon {
+      font-size: 18px;
+    }
+    .connected {
+      background: rgba(212, 237, 218, 0.9) !important;
+      color: #155724 !important;
+      border-color: rgba(21, 87, 36, 0.2) !important;
+    }
+    .disconnected {
+      background: rgba(248, 215, 218, 0.9) !important;
+      color: #721c24 !important;
+      border-color: rgba(114, 28, 36, 0.2) !important;
+    }
+    .control-group {
+      margin: 20px 0;
+    }
+    .control-label {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 10px;
+      display: block;
+    }
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      h1 {
+        font-size: 1.5rem;
+        padding: 15px;
+      }
+      #controls {
+        padding: 20px;
+        margin: 0 0 20px 0;
+      }
+      button {
+        padding: 12px 20px;
+        font-size: 14px;
+        margin: 5px;
+      }
+      input[type="text"], input[type="number"] {
+        padding: 12px 15px;
+        font-size: 14px;
+      }
+      .status {
+        flex-direction: column;
+        gap: 10px;
+      }
+      #player {
+        width: 100% !important;
+        height: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🎬 Watch Together - Synced</h1>
+
+  <div id="controls">
+    <div class="control-group">
+      <label class="control-label">📺 Load Video</label>
+      <div>
+        <input type="text" id="videoUrl" placeholder="Paste YouTube URL here">
+        <button onclick="loadVideo()">🚀 Load Video</button>
+      </div>
+    </div>
+    
+    <div class="control-group">
+      <label class="control-label">🎮 Video Controls</label>
+      <div>
+        <button onclick="controlVideo('play')">▶️ Play</button>
+        <button onclick="controlVideo('pause')">⏸️ Pause</button>
+        <button onclick="getCurrentTime()">🕒 Get Time</button>
+      </div>
+    </div>
+    
+    <div class="seek-control">
+      <label class="control-label">🎯 Jump to Time</label>
+      <div>
+        <input type="number" id="seekTime" placeholder="Seconds" min="0" step="0.1">
+        <button onclick="seekVideo()">🎯 Seek To Time</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <div id="connectionStatus" class="status-item">🔄 Connecting...</div>
+    <div id="userCount" class="status-item">
+      <span class="user-icon">👥</span>
+      <span id="userCountText">0 watching</span>
+    </div>
+  </div>
+
+  <div id="playerContainer">
+    <div id="player"></div>
+  </div>
+
+  <script>
+    // Optional: set SOCKET_SERVER_URL here when hosting frontend on Vercel and backend elsewhere
+    // window.SOCKET_SERVER_URL = "https://your-backend.example.com";
+    // window.SOCKET_IO_PATH = "/socket.io";
+  </script>
+  <script src="/script.js"></script>
+  
+  <script>
+    // Update connection status
+    socket.on('connect', function() {
+      const status = document.getElementById('connectionStatus');
+      status.textContent = '✅ Connected & Ready to Sync!';
+      status.classList.add('connected');
+      status.classList.remove('disconnected');
+    });
+    
+    socket.on('disconnect', function() {
+      const status = document.getElementById('connectionStatus');
+      status.textContent = '❌ Connection Lost - Reconnecting...';
+      status.classList.add('disconnected');
+      status.classList.remove('connected');
+    });
+
+    // Handle user count updates
+    socket.on('userCount', function(data) {
+      console.log('User count received:', data);
+      const userCountText = document.getElementById('userCountText');
+      const count = data.count;
+      
+      // Update counter text with proper grammar
+      if (count === 0) {
+        userCountText.textContent = 'No one watching';
+      } else if (count === 1) {
+        userCountText.textContent = '1 person watching';
+      } else {
+        userCountText.textContent = `${count} people watching`;
+      }
+      
+      console.log(`Users online: ${count}`);
+    });
+  </script>
+</body>
+</html>
