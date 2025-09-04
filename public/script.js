@@ -1,13 +1,68 @@
 // Allow overriding the Socket.IO server when deploying frontend separately (e.g., Vercel)
 // Provide via: window.SOCKET_SERVER_URL (string) and optional window.SOCKET_IO_PATH
 const SOCKET_IO_PATH = window.SOCKET_IO_PATH || '/socket.io';
-const SOCKET_SERVER_URL = (typeof window !== 'undefined' && window.SOCKET_SERVER_URL) 
-  || window.localStorage.getItem('SOCKET_SERVER_URL') 
+const SOCKET_SERVER_URL = (typeof window !== 'undefined' && window.SOCKET_SERVER_URL)
+  || window.localStorage.getItem('SOCKET_SERVER_URL')
   || undefined; // fall back to same-origin when undefined
 
-const socket = SOCKET_SERVER_URL
+let socket = SOCKET_SERVER_URL
   ? io(SOCKET_SERVER_URL, { path: SOCKET_IO_PATH, transports: ['websocket', 'polling'], withCredentials: true })
   : io('/', { path: SOCKET_IO_PATH, transports: ['websocket', 'polling'], withCredentials: true });
+
+// Expose helper to set backend URL
+window.setBackendUrl = function() {
+  const input = document.getElementById('backendUrl');
+  if (!input) return;
+  const url = input.value.trim();
+  if (!url) {
+    showNotification('⚠️ Please enter a valid backend URL', 'warning');
+    return;
+  }
+  try {
+    new URL(url);
+  } catch (e) {
+    showNotification('❌ Invalid URL format', 'error');
+    return;
+  }
+  window.localStorage.setItem('SOCKET_SERVER_URL', url);
+  showNotification('✅ Backend URL saved. Reconnecting...', 'success');
+
+  try {
+    if (socket && typeof socket.disconnect === 'function') {
+      socket.disconnect();
+    }
+  } catch {}
+
+  socket = io(url, { path: SOCKET_IO_PATH, transports: ['websocket', 'polling'], withCredentials: true });
+  attachSocketHandlers();
+};
+
+function attachSocketHandlers() {
+  socket.on('connect', function() {
+    const status = document.getElementById('connectionStatus');
+    if (status) {
+      status.textContent = '✅ Connected & Ready to Sync!';
+      status.classList.add('connected');
+      status.classList.remove('disconnected');
+    }
+  });
+  socket.on('disconnect', function() {
+    const status = document.getElementById('connectionStatus');
+    if (status) {
+      status.textContent = '❌ Connection Lost - Reconnecting...';
+      status.classList.add('disconnected');
+      status.classList.remove('connected');
+    }
+  });
+}
+
+// Initialize input with stored URL
+document.addEventListener('DOMContentLoaded', function() {
+  const input = document.getElementById('backendUrl');
+  if (input) {
+    input.value = window.localStorage.getItem('SOCKET_SERVER_URL') || '';
+  }
+});
 let player;
 let isPlayerReady = false;
 let pendingVideoId = null;
